@@ -1,0 +1,424 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Tổng Files</h6>
+                        <h3 id="totalFiles">{{ files|length }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-file-alt fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Hoàn thành</h6>
+                        <h3 id="completedFiles">
+                            {% set completed = files|selectattr('4', 'equalto', 'completed')|list %}
+                            {{ completed|length }}
+                        </h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Đang xử lý</h6>
+                        <h3 id="processingFiles">
+                            {% set processing = files|selectattr('4', 'equalto', 'pending')|list %}
+                            {{ processing|length }}
+                        </h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-spinner fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Logs hôm nay</h6>
+                        <h3 id="todayLogs">
+                            {% set count = 0 %}
+                            {% for log in logs %}
+                                {% if log[2][:10] == today %}
+                                    {% set count = count + 1 %}
+                                {% endif %}
+                            {% endfor %}
+                            {{ count }}
+                        </h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-list fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between">
+                <h5><i class="fas fa-file-alt"></i> Danh sách Files</h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="refreshData()">
+                    <i class="fas fa-refresh"></i> Refresh
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="filesTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Tên file</th>
+                                <th>Kích thước</th>
+                                <th>Số phần</th>
+                                <th>Trạng thái</th>
+                                <th>Thời gian tạo</th>
+                                <th>Hoàn thành</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for file in files %}
+                            <tr>
+                                <td>{{ file[0] }}</td>
+                                <td>
+                                    <i class="fas fa-file-alt text-primary"></i>
+                                    {{ file[1] }}
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">
+                                        {{ (file[2] / 1024) | round(2) }} KB
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">{{ file[3] }}</span>
+                                </td>
+                                <td>
+                                    {% if file[4] == 'completed' %}
+                                        <span class="badge bg-success">Hoàn thành</span>
+                                    {% elif file[4] == 'pending' %}
+                                        <span class="badge bg-warning" style="background-color: #ffc107; color: #fff;">Đang xử lý</span>
+                                    {% elif file[4] == 'error' %}
+                                        <span class="badge bg-danger">Lỗi</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ file[4] }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small class="datetime">{{ file[5] }}</small>
+                                </td>
+                                <td>
+                                    {% if file[6] %}
+                                        <small class="text-success datetime">{{ file[6] }}</small>
+                                    {% else %}
+                                        <small class="text-muted">-</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if file[4] == 'completed' %}
+                                        <a href="/download/{{ file[1] }}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-download"></i>
+                                        </a>
+                                    {% endif %}
+                                    <button class="btn btn-sm btn-info" onclick="viewFileDetails({{ file[0] }})">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-pie"></i> Thống kê trạng thái</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="statusChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-list"></i> Logs hoạt động gần đây</h5>
+            </div>
+            <div class="card-body">
+                <div style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Thời gian</th>
+                                <th>Hành động</th>
+                                <th>Chi tiết</th>
+                                <th>IP</th>
+                                <th>Trạng thái</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in logs[:50] %}
+                            <tr>
+                                <td>
+                                    <small>{{ log[2][8:10] }}-{{ log[2][5:7] }}-{{ log[2][:4] }} {{ log[2][11:19] }}</small>
+                                </td>
+                                <td>
+                                    {% if log[4] == 'error' %}
+                                        <i class="fas fa-exclamation-triangle text-danger"></i>
+                                    {% elif log[4] == 'success' %}
+                                        <i class="fas fa-check-circle text-success"></i>
+                                    {% else %}
+                                        <i class="fas fa-info-circle text-info"></i>
+                                    {% endif %}
+                                    {{ log[0] }}
+                                </td>
+                                <td>
+                                    <small>{{ log[1] }}</small>
+                                </td>
+                                <td>
+                                    {% if log[3] %}
+                                        <small class="text-muted">{{ log[3] }}</small>
+                                    {% else %}
+                                        <small class="text-muted">-</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if log[4] == 'error' %}
+                                        <span class="badge bg-danger">Error</span>
+                                    {% elif log[4] == 'success' %}
+                                        <span class="badge bg-success">Success</span>
+                                    {% else %}
+                                        <span class="badge bg-info">Info</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- File Details Modal -->
+<div class="modal fade" id="fileDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Chi tiết File</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="fileDetailsContent">
+                <!-- Content will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Initialize status chart
+const ctx = document.getElementById('statusChart').getContext('2d');
+const statusChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Hoàn thành', 'Đang xử lý', 'Lỗi'],
+        datasets: [{
+            data: [
+                {{ completed|length }},
+                {{ processing|length }},
+                {{ files|selectattr('4', 'equalto', 'error')|list|length }}
+            ],
+            backgroundColor: [
+                '#28a745', // Success green
+                '#ffc107', // Warning yellow
+                '#dc3545'  // Error red
+            ],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+
+// Auto refresh every 30 seconds
+setInterval(refreshData, 30000);
+
+function refreshData() {
+    location.reload();
+}
+
+function viewFileDetails(fileId) {
+    // Load file details via AJAX
+    fetch(`/api/file/${fileId}`)
+    .then(response => response.json())
+    .then(data => {
+        const modalContent = document.getElementById('fileDetailsContent');
+        modalContent.innerHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Thông tin cơ bản</h6>
+                    <table class="table table-sm">
+                        <tr><th>ID:</th><td>${data.id}</td></tr>
+                        <tr><th>Tên file:</th><td>${data.filename}</td></tr>
+                        <tr><th>Kích thước:</th><td>${formatFileSize(data.size)}</td></tr>
+                        <tr><th>Số phần:</th><td>${data.parts}</td></tr>
+                        <tr><th>Trạng thái:</th><td>${data.status}</td></tr>
+                        <tr><th>Thời gian tạo:</th><td>${data.created_at}</td></tr>
+                        <tr><th>Hoàn thành:</th><td>${data.completed_at || 'Chưa hoàn thành'}</td></tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h6>Metadata</h6>
+                    <pre class="bg-light p-2 rounded small">${JSON.stringify(data.metadata, null, 2)}</pre>
+                </div>
+            </div>
+        `;
+        
+        const modal = new bootstrap.Modal(document.getElementById('fileDetailsModal'));
+        modal.show();
+    })
+    .catch(error => {
+        alert('Lỗi tải chi tiết file: ' + error.message);
+    });
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// Make table sortable
+document.addEventListener('DOMContentLoaded', function() {
+    const table = document.getElementById('filesTable');
+    if (table) {
+        // Add click handlers to sortable headers
+        const headers = table.querySelectorAll('th');
+        headers.forEach((header, index) => {
+            if (index < 7) { // Only first 7 columns are sortable
+                header.style.cursor = 'pointer';
+                header.addEventListener('click', () => sortTable(index));
+            }
+        });
+    }
+});
+
+function sortTable(columnIndex) {
+    const table = document.getElementById('filesTable');
+    const tbody = table.tBodies[0];
+    const rows = Array.from(tbody.rows);
+    
+    // Toggle sort direction
+    const isAscending = table.dataset.sortDirection !== 'asc';
+    table.dataset.sortDirection = isAscending ? 'asc' : 'desc';
+    
+    rows.sort((a, b) => {
+        const aValue = a.cells[columnIndex].textContent.trim();
+        const bValue = b.cells[columnIndex].textContent.trim();
+        
+        // Try to parse as numbers first
+        const aNum = parseFloat(aValue);
+        const bNum = parseFloat(bValue);
+        
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+            return isAscending ? aNum - bNum : bNum - aNum;
+        }
+        
+        // String comparison
+        return isAscending ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+    });
+    
+    // Rebuild table body
+    rows.forEach(row => tbody.appendChild(row));
+    
+    // Update header indicators
+    table.querySelectorAll('th').forEach(th => th.classList.remove('sort-asc', 'sort-desc'));
+    table.querySelectorAll('th')[columnIndex].classList.add(isAscending ? 'sort-asc' : 'sort-desc');
+}
+
+// Chuyển đổi ngày giờ sang UTC+7 và định dạng DD-MM-YYYY HH:mm:ss
+function convertToVietnamTime(dateStr) {
+    if (!dateStr) return '';
+    // Chuẩn hóa định dạng nếu thiếu 'T'
+    if (dateStr.indexOf('T') === -1 && dateStr.indexOf(' ') !== -1) {
+        dateStr = dateStr.replace(' ', 'T');
+    }
+    let d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    // Nếu giờ là UTC, cộng thêm 7 tiếng
+    if (d.getUTCHours() === d.getHours()) {
+        d.setHours(d.getHours() + 7);
+    }
+    let dd = String(d.getDate()).padStart(2, '0');
+    let mm = String(d.getMonth() + 1).padStart(2, '0');
+    let yyyy = d.getFullYear();
+    let hh = String(d.getHours()).padStart(2, '0');
+    let min = String(d.getMinutes()).padStart(2, '0');
+    let ss = String(d.getSeconds()).padStart(2, '0');
+    return `${dd}-${mm}-${yyyy} ${hh}:${min}:${ss}`;
+}
+window.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.datetime').forEach(function(el) {
+        el.textContent = convertToVietnamTime(el.textContent);
+    });
+});
+</script>
+
+<style>
+.sort-asc::after {
+    content: ' ↑';
+    color: #007bff;
+}
+
+.sort-desc::after {
+    content: ' ↓';
+    color: #007bff;
+}
+
+th[style*="cursor: pointer"]:hover {
+    background-color: #f8f9fa;
+}
+</style>
+{% endblock %}

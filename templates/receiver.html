@@ -1,0 +1,376 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-download"></i> Server nhận file</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="serverHost" class="form-label">Địa chỉ bind:</label>
+                            <input type="text" class="form-control" id="serverHost" value="localhost">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="serverPort" class="form-label">Port:</label>
+                            <input type="number" class="form-control" id="serverPort" value="8888">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Điều khiển:</label><br>
+                            <button id="startBtn" class="btn btn-success me-2">
+                                <i class="fas fa-play"></i> Khởi động
+                            </button>
+                            <button id="stopBtn" class="btn btn-danger" disabled>
+                                <i class="fas fa-stop"></i> Dừng
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Server Status -->
+                <div class="alert alert-secondary" id="serverStatus">
+                    <i class="fas fa-info-circle"></i> Server chưa được khởi động
+                </div>
+
+                <!-- Status messages -->
+                <div id="statusMessages">
+                    <!-- Messages sẽ được hiển thị ở đây -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-file-alt"></i> Files đã nhận gần đây</h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="loadRecentFiles()">
+                    <i class="fas fa-refresh"></i> Refresh
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="recentFiles" class="table-responsive">
+                    <p class="text-muted">Đang tải...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-list"></i> Logs hoạt động</h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="loadActivityLogs()">
+                    <i class="fas fa-refresh"></i> Refresh
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="activityLogs" style="height: 300px; overflow-y: auto;">
+                    <p class="text-muted">Đang tải...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-cog"></i> Hướng dẫn cấu hình</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-server"></i> Khởi động Server</h6>
+                        <ol>
+                            <li>Nhập địa chỉ IP và port muốn bind</li>
+                            <li>Click "Khởi động" để bắt đầu lắng nghe</li>
+                            <li>Server sẽ sẵn sàng nhận file từ sender</li>
+                        </ol>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-shield-alt"></i> Quy trình bảo mật</h6>
+                        <ul>
+                            <li>Xác thực handshake với sender</li>
+                            <li>Kiểm tra chữ ký RSA của metadata</li>
+                            <li>Giải mã session key bằng private key</li>
+                            <li>Verify hash và signature từng phần</li>
+                            <li>Tái tạo file hoàn chỉnh</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let serverRunning = false;
+
+// Auto-refresh data every 5 seconds when server is running
+setInterval(() => {
+    if (serverRunning) {
+        loadRecentFiles();
+        loadActivityLogs();
+    }
+}, 5000);
+
+// Load initial data
+document.addEventListener('DOMContentLoaded', function() {
+    loadRecentFiles();
+    loadActivityLogs();
+});
+
+document.getElementById('startBtn').addEventListener('click', function() {
+    const host = document.getElementById('serverHost').value;
+    const port = document.getElementById('serverPort').value;
+    
+    if (!host || !port) {
+        showMessage('error', 'Vui lòng nhập đầy đủ địa chỉ và port');
+        return;
+    }
+    
+    fetch('/start_receiver', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({host: host, port: parseInt(port)})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            showMessage('error', data.error);
+        } else {
+            showMessage('success', data.message);
+            updateServerStatus(true, host, port);
+        }
+    })
+    .catch(error => {
+        showMessage('error', 'Có lỗi xảy ra: ' + error.message);
+    });
+});
+
+document.getElementById('stopBtn').addEventListener('click', function() {
+    fetch('/stop_receiver', {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            showMessage('error', data.error);
+        } else {
+            showMessage('success', data.message);
+            updateServerStatus(false);
+        }
+    })
+    .catch(error => {
+        showMessage('error', 'Có lỗi xảy ra: ' + error.message);
+    });
+});
+
+function updateServerStatus(running, host = '', port = '') {
+    const statusDiv = document.getElementById('serverStatus');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    
+    if (running) {
+        statusDiv.className = 'alert alert-success';
+        statusDiv.innerHTML = `<i class="fas fa-check-circle"></i> Server đang chạy tại ${host}:${port}`;
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        serverRunning = true;
+    } else {
+        statusDiv.className = 'alert alert-secondary';
+        statusDiv.innerHTML = '<i class="fas fa-info-circle"></i> Server chưa được khởi động';
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        serverRunning = false;
+    }
+}
+
+function showMessage(type, message) {
+    const container = document.getElementById('statusMessages');
+    const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+    const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle';
+    
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert ${alertClass} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        <i class="fas ${icon}"></i> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    container.appendChild(alertDiv);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
+function loadRecentFiles() {
+    fetch('/api/files')
+    .then(response => response.json())
+    .then(files => {
+        const container = document.getElementById('recentFiles');
+        
+        if (files.length === 0) {
+            container.innerHTML = '<p class="text-muted">Chưa có file nào được nhận</p>';
+            return;
+        }
+        
+        let html = `
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Tên file</th>
+                        <th>Kích thước</th>
+                        <th>Trạng thái</th>
+                        <th>Thời gian</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        files.slice(0, 10).forEach(file => {
+            const statusBadge = file.status === 'completed' ? 
+                '<span class="badge bg-success">Hoàn thành</span>' : 
+                '<span class="badge bg-warning">Đang xử lý</span>';
+            
+            const downloadBtn = file.status === 'completed' ? 
+                `<a href="/download/${file.filename}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-download"></i>
+                </a>` : '-';
+            
+            html += `
+                <tr>
+                    <td>${file.filename}</td>
+                    <td><span class="badge bg-secondary">${formatFileSize(file.size)}</span></td>
+                    <td>${statusBadge}</td>
+                    <td><small class="datetime">${formatDateTime(file.completed_at || file.created_at)}</small></td>
+                    <td>${downloadBtn}</td>
+                </tr>
+            `;
+        });
+        
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    })
+    .catch(error => {
+        document.getElementById('recentFiles').innerHTML = 
+            '<p class="text-danger">Lỗi tải dữ liệu: ' + error.message + '</p>';
+    });
+}
+
+function loadActivityLogs() {
+    fetch('/api/logs')
+    .then(response => response.json())
+    .then(logs => {
+        const container = document.getElementById('activityLogs');
+        
+        if (logs.length === 0) {
+            container.innerHTML = '<p class="text-muted">Chưa có log nào</p>';
+            return;
+        }
+        
+        let html = '';
+        logs.slice(0, 20).forEach(log => {
+            const statusClass = log.status === 'error' ? 'text-danger' : 
+                               log.status === 'success' ? 'text-success' : 'text-info';
+            const icon = log.status === 'error' ? 'fa-exclamation-triangle' : 
+                        log.status === 'success' ? 'fa-check-circle' : 'fa-info-circle';
+            
+            html += `
+                <div class="border-bottom pb-2 mb-2">
+                    <div class="d-flex justify-content-between">
+                        <span class="${statusClass}">
+                            <i class="fas ${icon}"></i> ${log.action}
+                        </span>
+                        <small class="text-muted">${formatDateTime(log.timestamp)}</small>
+                    </div>
+                    <div class="small text-muted">${log.details}</div>
+                    ${log.ip_address ? `<div class="small text-muted">IP: ${log.ip_address}</div>` : ''}
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+        container.scrollTop = 0; // Scroll to top for newest logs
+    })
+    .catch(error => {
+        document.getElementById('activityLogs').innerHTML = 
+            '<p class="text-danger">Lỗi tải logs: ' + error.message + '</p>';
+    });
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function formatDateTime(dateString) {
+    if (!dateString) return '';
+    // Nếu có dấu + (timezone) thì cắt phần microsecond
+    let main = dateString;
+    if (dateString.includes('+')) {
+        main = dateString.split('+')[0];
+    }
+    // Nếu có dấu . (microsecond) thì cắt bỏ
+    if (main.includes('.')) {
+        main = main.split('.')[0];
+    }
+    // Chuẩn hóa định dạng nếu thiếu 'T'
+    if (main.indexOf('T') !== -1) {
+        main = main.replace('T', ' ');
+    }
+    // Parse lại thành Date object
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return main;
+    // Định dạng DD-MM-YYYY HH:mm:ss
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    return `${dd}-${mm}-${yyyy} ${hh}:${min}:${ss}`;
+}
+
+function convertToVietnamTime(dateStr) {
+    if (!dateStr) return '';
+    // Chuẩn hóa định dạng nếu thiếu 'T'
+    if (dateStr.indexOf('T') === -1 && dateStr.indexOf(' ') !== -1) {
+        dateStr = dateStr.replace(' ', 'T');
+    }
+    let d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    // Nếu giờ là UTC, cộng thêm 7 tiếng
+    if (d.getUTCHours() === d.getHours()) {
+        d.setHours(d.getHours() + 7);
+    }
+    let dd = String(d.getDate()).padStart(2, '0');
+    let mm = String(d.getMonth() + 1).padStart(2, '0');
+    let yyyy = d.getFullYear();
+    let hh = String(d.getHours()).padStart(2, '0');
+    let min = String(d.getMinutes()).padStart(2, '0');
+    let ss = String(d.getSeconds()).padStart(2, '0');
+    return `${dd}-${mm}-${yyyy} ${hh}:${min}:${ss}`;
+}
+</script>
+{% endblock %}

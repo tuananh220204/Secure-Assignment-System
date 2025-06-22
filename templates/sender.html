@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-upload"></i> Gửi file bài tập</h4>
+            </div>
+            <div class="card-body">
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="fileInput" class="form-label">Chọn file bài tập:</label>
+                                <input type="file" class="form-control" id="fileInput" name="file" required>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="hostInput" class="form-label">Địa chỉ server:</label>
+                                <input type="text" class="form-control" id="hostInput" name="host" value="localhost">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="portInput" class="form-label">Port:</label>
+                                <input type="number" class="form-control" id="portInput" name="port" value="8888">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <button type="submit" class="btn btn-primary" id="sendBtn">
+                            <i class="fas fa-paper-plane"></i> Gửi file
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="location.reload()">
+                            <i class="fas fa-refresh"></i> Reset
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Progress bar upload -->
+                <div id="progressUploadContainer" style="display: none;">
+                    <div class="mb-2">
+                        <strong>Tiến trình upload:</strong>
+                    </div>
+                    <div class="progress mb-3">
+                        <div id="progressUploadBar" class="progress-bar bg-primary" role="progressbar" style="width: 0%">
+                            <span id="progressUploadText">0%</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- Progress bar server processing -->
+                <div id="progressServerContainer" style="display: none;">
+                    <div class="mb-2">
+                        <strong>Server đang xử lý file...</strong>
+                    </div>
+                    <div class="progress mb-3">
+                        <div id="progressServerBar" class="progress-bar progress-bar-striped progress-bar-animated bg-warning" role="progressbar" style="width: 100%">
+                            <span id="progressServerText">Đang xử lý...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status -->
+                <div id="statusContainer">
+                    <!-- Status messages sẽ được hiển thị ở đây -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle"></i> Hướng dẫn sử dụng</h5>
+            </div>
+            <div class="card-body">
+                <ol>
+                    <li><strong>Chọn file:</strong> Click vào "Chọn file" và chọn file bài tập (.txt) cần gửi</li>
+                    <li><strong>Cấu hình server:</strong> Nhập địa chỉ và port của server nhận (mặc định localhost:8888)</li>
+                    <li><strong>Gửi file:</strong> Click "Gửi file" để bắt đầu quá trình gửi an toàn</li>
+                    <li><strong>Theo dõi:</strong> Quan sát thanh tiến trình và thông báo trạng thái</li>
+                </ol>
+                
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-shield-alt"></i>
+                    <strong>Bảo mật:</strong> File sẽ được chia thành 3 phần, mã hóa bằng DES, 
+                    và ký số bằng RSA trước khi gửi.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+    const sendBtn = document.getElementById('sendBtn');
+    const statusContainer = document.getElementById('statusContainer');
+    // Progress upload
+    const progressUploadContainer = document.getElementById('progressUploadContainer');
+    const progressUploadBar = document.getElementById('progressUploadBar');
+    const progressUploadText = document.getElementById('progressUploadText');
+    // Progress server
+    const progressServerContainer = document.getElementById('progressServerContainer');
+    const progressServerBar = document.getElementById('progressServerBar');
+    const progressServerText = document.getElementById('progressServerText');
+    let serverPercent = 0;
+    let serverInterval = null;
+
+    // Reset progress
+    progressUploadBar.style.width = '0%';
+    progressUploadBar.classList.remove('bg-success', 'bg-warning', 'bg-danger');
+    progressUploadBar.classList.add('bg-primary');
+    progressUploadText.textContent = '0%';
+    progressUploadContainer.style.display = 'block';
+    progressServerContainer.style.display = 'none';
+
+    // Disable button
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang gửi...';
+
+    // Sử dụng XMLHttpRequest để theo dõi tiến trình upload
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/upload', true);
+
+    xhr.upload.onprogress = function(e) {
+        if (e.lengthComputable) {
+            let percent = Math.round((e.loaded / e.total) * 100);
+            if (percent > 100) percent = 100;
+            progressUploadBar.style.width = percent + '%';
+            progressUploadText.textContent = percent + '%';
+        }
+    };
+
+    xhr.upload.onloadend = function() {
+        // Khi upload xong, ẩn thanh upload, hiện thanh server processing
+        progressUploadBar.style.width = '100%';
+        progressUploadText.textContent = '100%';
+        progressUploadBar.classList.remove('bg-primary');
+        progressUploadBar.classList.add('bg-success');
+        setTimeout(() => {
+            progressUploadContainer.style.display = 'none';
+            progressServerContainer.style.display = 'block';
+            // Bắt đầu giả lập tiến trình server
+            serverPercent = 0;
+            progressServerBar.style.width = '0%';
+            progressServerText.textContent = '0%';
+            if (serverInterval) clearInterval(serverInterval);
+            serverInterval = setInterval(() => {
+                if (serverPercent < 99) {
+                    serverPercent++;
+                    progressServerBar.style.width = serverPercent + '%';
+                    progressServerText.textContent = serverPercent + '%';
+                }
+            }, 100);
+        }, 400);
+    };
+
+    xhr.onload = function() {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Gửi file';
+        if (serverInterval) clearInterval(serverInterval);
+        progressServerBar.style.width = '100%';
+        progressServerText.textContent = '100%';
+        setTimeout(() => {
+            progressServerContainer.style.display = 'none';
+        }, 400);
+        if (xhr.status === 200) {
+            const data = JSON.parse(xhr.responseText);
+            if (data.error) {
+                showStatus('error', data.error);
+            } else {
+                showStatus('success', data.message);
+                if (data.warning) {
+                    showStatus('error', data.warning);
+                }
+            }
+        } else {
+            showStatus('error', 'Có lỗi xảy ra khi gửi file!');
+        }
+    };
+
+    xhr.onerror = function() {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Gửi file';
+        if (serverInterval) clearInterval(serverInterval);
+        progressServerContainer.style.display = 'none';
+        showStatus('error', 'Có lỗi xảy ra khi gửi file!');
+    };
+
+    xhr.send(formData);
+});
+
+function updateProgress(percent) {
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    progressBar.style.width = percent + '%';
+    progressText.textContent = percent + '%';
+}
+
+function showStatus(type, message) {
+    const statusContainer = document.getElementById('statusContainer');
+    const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+    const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle';
+    statusContainer.innerHTML = `
+        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+            <i class="fas ${icon}"></i> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+}
+</script>
+{% endblock %}
