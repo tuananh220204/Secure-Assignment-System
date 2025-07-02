@@ -93,12 +93,6 @@ sequenceDiagram
     Receiver-->>Sender: Gửi tín hiệu [COMPLETE]
 ```
 
-**Giải thích sơ đồ:**
-- **Màu xanh nhạt:** File gốc và file kết quả
-- **Màu cam:** Quá trình gửi dữ liệu
-- **Màu tím:** Quá trình xử lý nhận dữ liệu
-- **Màu xanh lá:** Trạng thái hoàn tất
-
 ## 3. ✨ Tính năng chính (Features)
 
 ### 🔐 **Bảo mật nâng cao:**
@@ -377,7 +371,7 @@ Dự án này được cấp phép theo **Giấy phép MIT** - một trong nhữ
 - **Đơn giản, rõ ràng:** Dễ hiểu, không ràng buộc phức tạp, dễ tiếp cận.
 - **Khuyến khích học tập:** Ai cũng có thể học hỏi và đóng góp.
 - **Phù hợp học thuật:** Tối ưu cho dự án mang tính nghiên cứu, giáo dục.
-- **Lan tỏa giá trị:** Góp phần xây dụng cộng đồng mã nguồn mở
+- **Lan tỏa giá trị:** Góp phần xây dựng cộng đồng mã nguồn mở
 
 👉 Chi tiết nội dung giấy phép nằm trong file `LICENSE` trong thư mục gốc để biết đầy đủ nội dung giấy phép.
 
