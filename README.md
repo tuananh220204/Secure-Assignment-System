@@ -37,6 +37,101 @@ Dự án là sự kết hợp của nhiều khái niệm quan trọng trong lĩn
 
 *Hình ảnh: Giao diện trang chủ của Web App với các tính năng chính*
 
+## 🗺️ Sơ đồ kiến trúc tổng thể hệ thống
+
+Sơ đồ dưới đây mô tả các lớp (layer) chính của hệ thống, luồng dữ liệu và mối liên hệ giữa các thành phần:
+
+```mermaid
+graph TD
+    %% User Layer
+    User[👤 Người dùng]
+    
+    %% Frontend Layer
+    subgraph Frontend["🖥️ Giao diện người dùng (Frontend)"]
+        UI[Web Interface]
+        Flask[Flask Framework]
+        Jinja2[Jinja2 Templates]
+        HTML[HTML]
+        Bootstrap[Bootstrap CSS]
+        
+        subgraph Features["Chức năng giao diện"]
+            Login[Đăng nhập/Đăng ký]
+            FileTransfer[Gửi/Nhận file]
+            Status[Theo dõi trạng thái]
+            RSAManage[Quản lý khóa RSA]
+            Security[Thông báo bảo mật]
+        end
+    end
+    
+    %% Backend Layer
+    subgraph Backend["⚙️ Máy chủ xử lý (Backend)"]
+        Python[Python]
+        FlaskApp[Flask Application]
+        
+        subgraph BackendServices["Dịch vụ Backend"]
+            Auth[Xác thực người dùng]
+            Encryption[Mã hóa/Giải mã]
+            FileSplit[Chia/Gộp file]
+            Session[Quản lý phiên]
+            Logging[Ghi log hoạt động]
+            Permission[Kiểm tra phân quyền]
+        end
+    end
+    
+    %% Database Layer
+    subgraph Database["🗄️ Cơ sở dữ liệu (Database)"]
+        SQLite[SQLite Database]
+        SQLAlchemy[SQLAlchemy ORM]
+        
+        subgraph DataTables["Bảng dữ liệu"]
+            Users[Thông tin người dùng]
+            Assignments[Bài tập]
+            Logs[Log hoạt động]
+            RSAKeys[Khóa công khai RSA]
+        end
+    end
+    
+    %% Connections
+    User -->|HTTP/HTTPS| Frontend
+    
+    Frontend <-->|HTTP Request/Response<br/>RESTful API| Backend
+    Flask --> FlaskApp
+    Jinja2 --> UI
+    HTML --> UI
+    Bootstrap --> UI
+    
+    Backend <-->|SQL Queries<br/>TCP Connection| Database
+    FlaskApp --> SQLAlchemy
+    SQLAlchemy --> SQLite
+    
+    %% Feature connections
+    Login --> Auth
+    FileTransfer --> FileSplit
+    FileTransfer --> Encryption
+    Status --> Logging
+    RSAManage --> RSAKeys
+    Security --> Permission
+    
+    %% Backend service connections
+    Auth --> Users
+    Encryption --> RSAKeys
+    FileSplit --> Assignments
+    Session --> Users
+    Logging --> Logs
+    Permission --> Users
+    
+    %% Styling
+    classDef frontend fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
+    classDef backend fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef database fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    classDef user fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+    
+    class Frontend,UI,Flask,Jinja2,HTML,Bootstrap,Features,Login,FileTransfer,Status,RSAManage,Security frontend
+    class Backend,Python,FlaskApp,BackendServices,Auth,Encryption,FileSplit,Session,Logging,Permission backend
+    class Database,SQLite,SQLAlchemy,DataTables,Users,Assignments,Logs,RSAKeys database
+    class User user
+```
+
 ## 2. 🏗️ Mô tả hệ thống (System Overview)
 
 Hệ thống được xây dựng theo mô hình Client-Server, trong đó Sender (bên gửi) sẽ chia nhỏ tệp tin, mã hóa từng phần và gửi tới Receiver (bên nhận). Receiver sẽ xác thực, giải mã và ghép các phần lại để khôi phục thành tệp gốc.
