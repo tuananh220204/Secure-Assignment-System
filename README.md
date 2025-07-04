@@ -1,4 +1,4 @@
-# 🛡️ Hệ thống Gửi và Nhận Bài tập An toàn Chia Nhiều Phần 🚀
+# 🛡️ HỆ THỐNG GỬI VÀ NHẬN BÀI TẬP AN TOÀN CHIA THÀNH NHIỀU PHẦN 🚀
 
 ## 1. 📝 Giới thiệu (Introduction)
 
